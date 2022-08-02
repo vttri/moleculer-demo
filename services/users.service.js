@@ -26,7 +26,7 @@ module.exports = {
 		after: {
 			"*": function (ctx, res) {
 				// Remove password
-				res.alt = "aaaaaaaaaaaaa";
+				res.afterHook = "after hook";
 
 				// Please note, must return result (either the original or a new)
 				return res;
@@ -257,32 +257,6 @@ module.exports = {
 			}
 
 			return { user };
-		},
-
-		/**
-		 * Transform returned user entity as profile.
-		 *
-		 * @param {Context} ctx
-		 * @param {Object} user
-		 * @param {Object?} loggedInUser
-		 */
-		async transformProfile(ctx, user, loggedInUser) {
-			//user.image = user.image || "https://www.gravatar.com/avatar/" + crypto.createHash("md5").update(user.email).digest("hex") + "?d=robohash";
-			user.image =
-				user.image ||
-				"https://static.productionready.io/images/smiley-cyrus.jpg";
-
-			if (loggedInUser) {
-				const res = await ctx.call("follows.has", {
-					user: loggedInUser._id.toString(),
-					follow: user._id.toString(),
-				});
-				user.following = res;
-			} else {
-				user.following = false;
-			}
-
-			return { profile: user };
 		},
 	},
 };

@@ -10,8 +10,6 @@ module.exports = {
 		options: {
 			// Prefix for keys
 			prefix: "MOL",
-			// set Time-to-live to 30sec.
-			// Turns Redis client monitoring on.
 			monitor: false,
 			// Redis settings
 			redis: {
