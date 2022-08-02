@@ -109,12 +109,10 @@ module.exports = {
 				entity.bio = entity.bio || "";
 				entity.image = entity.image || null;
 				entity.createdAt = new Date();
-
 				const doc = await this.adapter.insert(entity);
 				this.broker.emit("users.create", doc);
 				const user = await this.transformDocuments(ctx, {}, doc);
 				const json = await this.transformEntity(user, true, ctx.meta.token);
-				await this.entityChanged("created", json, ctx);
 				return json;
 			},
 		},
@@ -194,200 +192,30 @@ module.exports = {
 				if (decoded.id) return this.getById(decoded.id);
 			},
 		},
-
-		/**
-		 * Get current user entity.
-		 * Auth is required!
-		 *
-		 * @actions
-		 *
-		 * @returns {Object} User entity
-		 */
-		me: {
-			auth: "required",
-			rest: "GET /user",
-			cache: {
-				keys: ["#userID"],
-			},
-			async handler(ctx) {
-				const user = await this.getById(ctx.meta.user._id);
-				if (!user) throw new MoleculerClientError("User not found!", 400);
-
-				const doc = await this.transformDocuments(ctx, {}, user);
-				return await this.transformEntity(doc, true, ctx.meta.token);
-			},
-		},
-
-		/**
-		 * Update current user entity.
-		 * Auth is required!
-		 *
-		 * @actions
-		 *
-		 * @param {Object} user - Modified fields
-		 * @returns {Object} User entity
-		 */
-		updateMyself: {
-			auth: "required",
-			rest: "PUT /user",
-			params: {
-				user: {
-					type: "object",
-					props: {
-						username: {
-							type: "string",
-							min: 2,
-							optional: true,
-							pattern: /^[a-zA-Z0-9]+$/,
-						},
-						password: { type: "string", min: 6, optional: true },
-						email: { type: "email", optional: true },
-						bio: { type: "string", optional: true },
-						image: { type: "string", optional: true },
-					},
-				},
-			},
-			async handler(ctx) {
-				const newData = ctx.params.user;
-				if (newData.username) {
-					const found = await this.adapter.findOne({
-						username: newData.username,
-					});
-					if (found && found._id.toString() !== ctx.meta.user._id.toString())
-						throw new MoleculerClientError("Username is exist!", 422, "", [
-							{ field: "username", message: "is exist" },
-						]);
-				}
-
-				if (newData.email) {
-					const found = await this.adapter.findOne({ email: newData.email });
-					if (found && found._id.toString() !== ctx.meta.user._id.toString())
-						throw new MoleculerClientError("Email is exist!", 422, "", [
-							{ field: "email", message: "is exist" },
-						]);
-				}
-				newData.updatedAt = new Date();
-				const update = {
-					$set: newData,
-				};
-				const doc = await this.adapter.updateById(ctx.meta.user._id, update);
-
-				const user = await this.transformDocuments(ctx, {}, doc);
-				const json = await this.transformEntity(user, true, ctx.meta.token);
-				await this.entityChanged("updated", json, ctx);
-				return json;
-			},
-		},
-
 		list: {
 			auth: "required",
 			rest: "GET /users",
 		},
 
 		get: {
+			auth: "required",
 			rest: "GET /users/:id",
 		},
 
 		update: {
+			auth: "required",
 			rest: "PUT /users/:id",
 		},
 
 		remove: {
+			auth: "required",
 			rest: "DELETE /users/:id",
-		},
-
-		/**
-		 * Get a user profile.
-		 *
-		 * @actions
-		 *
-		 * @param {String} username - Username
-		 * @returns {Object} User entity
-		 */
-		profile: {
-			cache: {
-				keys: ["#userID", "username"],
-			},
-			rest: "GET /profiles/:username",
-			params: {
-				username: { type: "string" },
-			},
-			async handler(ctx) {
-				const user = await this.adapter.findOne({
-					username: ctx.params.username,
-				});
-				if (!user) throw new MoleculerClientError("User not found!", 404);
-
-				const doc = await this.transformDocuments(ctx, {}, user);
-				return await this.transformProfile(ctx, doc, ctx.meta.user);
-			},
-		},
-
-		/**
-		 * Follow a user
-		 * Auth is required!
-		 *
-		 * @actions
-		 *
-		 * @param {String} username - Followed username
-		 * @returns {Object} Current user entity
-		 */
-		follow: {
-			auth: "required",
-			rest: "POST /profiles/:username/follow",
-			params: {
-				username: { type: "string" },
-			},
-			async handler(ctx) {
-				const user = await this.adapter.findOne({
-					username: ctx.params.username,
-				});
-				if (!user) throw new MoleculerClientError("User not found!", 404);
-
-				await ctx.call("follows.add", {
-					user: ctx.meta.user._id.toString(),
-					follow: user._id.toString(),
-				});
-				const doc = await this.transformDocuments(ctx, {}, user);
-				return await this.transformProfile(ctx, doc, ctx.meta.user);
-			},
-		},
-
-		/**
-		 * Unfollow a user
-		 * Auth is required!
-		 *
-		 * @actions
-		 *
-		 * @param {String} username - Unfollowed username
-		 * @returns {Object} Current user entity
-		 */
-		unfollow: {
-			auth: "required",
-			rest: "DELETE /profiles/:username/follow",
-			params: {
-				username: { type: "string" },
-			},
-			async handler(ctx) {
-				const user = await this.adapter.findOne({
-					username: ctx.params.username,
-				});
-				if (!user) throw new MoleculerClientError("User not found!", 404);
-
-				await ctx.call("follows.delete", {
-					user: ctx.meta.user._id.toString(),
-					follow: user._id.toString(),
-				});
-				const doc = await this.transformDocuments(ctx, {}, user);
-				return await this.transformProfile(ctx, doc, ctx.meta.user);
-			},
-		},
+		}
 	},
 	events: {
 		"users.create"(ctx) {
 			this.logger.info("new user created");
-			console.log(ctx);
-			this.broker.cacher.set("user-1", ctx.params);
+			this.broker.cacher.set(`user_${ctx.params._id}`, ctx.params);
 		},
 	},
 
