@@ -10,29 +10,51 @@ module.exports = {
 
 	settings: {
 		port: process.env.PORT || 3000,
+		rateLimit: {
+			window: 60 * 1000,
+			limit: 2,
+		},
 
-		routes: [{
-			path: "/api",
-
-			authorization: true,
-			autoAliases: true,
-
-			// Set CORS headers
-			cors: true,
-
-			// Parse body content
-			bodyParsers: {
-				json: {
-					strict: false
+		routes: [
+			{
+				path: "/api",
+				// whitelist: [
+				// 	// Access any actions in 'posts' service
+				// 	"test.get",
+				// 	// Access call only the `users.list` action
+				// 	"users.list",
+				// ],
+				aliases: {
+					"GET test": "test.list",
+					"GET test/:id": "test.get",
+					"POST test": "test.create",
+					"PUT test/:id": "test.update",
+					"DELETE test/:id": "test.remove",
 				},
-				urlencoded: {
-					extended: false
-				}
-			}
-		}],
+				// aliases: {
+				//     "REST test": "test"
+				// },
+
+				authorization: false,
+				autoAliases: true,
+
+				// Set CORS headers
+				cors: true,
+
+				// Parse body content
+				bodyParsers: {
+					json: {
+						strict: false,
+					},
+					urlencoded: {
+						extended: false,
+					},
+				},
+			},
+		],
 
 		assets: {
-			folder: "./public"
+			folder: "./public",
 		},
 
 		// logRequestParams: "info",
@@ -45,7 +67,7 @@ module.exports = {
 
 			if (err.code == 422) {
 				let o = {};
-				err.data.forEach(e => {
+				err.data.forEach((e) => {
 					let field = e.field.split(".").pop();
 					o[field] = e.message;
 				});
@@ -56,8 +78,7 @@ module.exports = {
 				res.end(JSON.stringify(errObj, null, 2));
 			}
 			this.logResponse(req, res, err ? err.ctx : null);
-		}
-
+		},
 	},
 
 	methods: {
@@ -96,6 +117,6 @@ module.exports = {
 
 			if (req.$action.auth == "required" && !user)
 				throw new UnAuthorizedError();
-		}
-	}
+		},
+	},
 };

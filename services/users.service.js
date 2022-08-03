@@ -82,9 +82,18 @@ module.exports = {
 		create: {
 			rest: "POST /users",
 			params: {
-				user: { type: "object" },
+				user: { type: "object", usename: "string", email: "email" },
 			},
 			async handler(ctx) {
+				ctx.call(
+					"test.test",
+					{ testt: "test" },
+					{
+						meta: {
+							data: "test 2",
+						},
+					}
+				);
 				let entity = ctx.params.user;
 				await this.validateEntity(entity);
 				if (entity.username) {
@@ -210,7 +219,7 @@ module.exports = {
 		remove: {
 			auth: "required",
 			rest: "DELETE /users/:id",
-		}
+		},
 	},
 	events: {
 		"users.create"(ctx) {
